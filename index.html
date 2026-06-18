@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nostromo IceBrick Optimizer for SLC-5</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono','Cascadia Code',Consolas,monospace;padding:24px 36px;min-height:100vh}
+.pg{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#484f58;margin-bottom:5px}
+h1{font-size:20px;font-weight:400;color:#e6edf3;margin-bottom:3px;letter-spacing:-.3px}
+.sub{font-size:11px;color:#484f58;margin-bottom:20px}
+
+.sliders{display:grid;grid-template-columns:1fr 1fr;gap:6px 40px;margin-bottom:18px}
+.sr{display:flex;align-items:center;gap:12px}
+.sl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:#484f58;min-width:130px}
+input[type=range]{-webkit-appearance:none;width:220px;height:2px;background:#21262d;outline:none;border-radius:1px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#e6edf3;cursor:pointer;border:2px solid #0d1117;box-shadow:0 0 0 1px #484f58}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#e6edf3;cursor:pointer;border:2px solid #0d1117;box-shadow:0 0 0 1px #484f58}
+.sv{font-size:17px;font-weight:400;color:#e6edf3;min-width:110px}
+.sv em{font-size:10px;font-style:normal;color:#484f58;margin-left:3px}
+.sv .am{color:#ffffff} .sv .dr{color:#60a5fa}
+
+.btnrow{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.blbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#484f58;margin-right:4px}
+.btn{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;border:1px solid transparent;background:transparent;cursor:pointer;font-family:inherit;font-size:11px;transition:all .15s;user-select:none}
+.btn.on{border-color:var(--c);background:rgba(255,255,255,.05);color:var(--c)}
+.btn.off{border-color:#30363d;color:#484f58;opacity:.45}
+.btn .dot{width:7px;height:7px;border-radius:50%;background:var(--c);flex-shrink:0}
+.btn.off .dot{background:#484f58}
+
+.statrow{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#21262d;border:1px solid #21262d;border-radius:6px;overflow:hidden;margin-bottom:16px}
+.sc{background:#0d1117;padding:11px 13px}
+.sk{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#484f58;margin-bottom:4px;line-height:1.3}
+.sv2{font-size:19px;font-weight:400;line-height:1}
+.ss{font-size:10px;margin-top:3px;color:#484f58}
+.cp{color:#d2a8ff}.ca{color:#ffffff}.cg{color:#39d353}.co{color:#ffffff}.cw{color:#e6edf3}
+.cc{color:#38bdf8} /* cyan for indirect */
+
+.ct{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#484f58;margin-bottom:5px}
+canvas{display:block;width:100%}
+#mainCanvas{height:300px}
+#ambCanvas{height:96px;border-top:1px solid #161b22}
+.dv{height:1px;background:#21262d;margin:16px 0}
+.ib{border:1px solid #21262d;border-left:3px solid #ffffff;border-radius:0 6px 6px 0;padding:11px 15px;font-size:11px;color:#8b949e;line-height:1.75}
+.ib b{color:#e6edf3;font-weight:400}
+.ib .p{color:#d2a8ff}.ib .o{color:#ffffff}.ib .a{color:#ffffff}.ib .g{color:#39d353}.ib .c{color:#38bdf8}.ib .dr{color:#60a5fa}
+
+/* legend row */
+.legend{display:flex;gap:16px;margin-bottom:6px;flex-wrap:wrap;font-size:10px;color:#484f58;align-items:center}
+.li{display:flex;align-items:center;gap:5px}
+.lb{width:18px;height:3px;border-radius:1px;flex-shrink:0}
+.lsq{width:10px;height:10px;border-radius:2px;flex-shrink:0;opacity:.7}
+</style>
+</head>
+<body>
+
+<p class="pg">DataBank · SLC-5 · Cooling Analysis</p>
+<h1 style="color:#e53e3e;font-weight:700">Nostromo IceBrick Optimizer for SLC-5</h1>
+<p class="sub">SLC summer design day (ASHRAE 0.4%) · Air-cooled chillers · 70% chiller load baseline · kW/ton from SLC-5 actuals Jul 30–Aug 1 2025 · Indirect efficiency: 0.8% per 1% load reduction</p>
+
+<div class="sliders">
+  <div class="sr">
+    <span class="sl">DC cooling load</span>
+    <input type="range" id="rtSlider" min="500" max="5000" step="50" value="2200">
+    <div class="sv"><span id="rtVal">2,200</span><em>RT</em></div>
+  </div>
+  <div class="sr">
+    <span class="sl">DR window start</span>
+    <input type="range" id="drSSlider" min="6" max="21" step="1" value="10">
+    <div class="sv"><span id="drSVal" class="dr">10 am</span></div>
+  </div>
+  <div class="sr">
+    <span class="sl">IceBrick storage</span>
+    <input type="range" id="sSlider" min="1000" max="15000" step="25" value="1000">
+    <div class="sv"><span id="sVal">1000</span><em class="am">RT-h</em></div>
+  </div>
+  <div class="sr">
+    <span class="sl">DR window end</span>
+    <input type="range" id="drESlider" min="7" max="23" step="1" value="18">
+    <div class="sv"><span id="drEVal" class="dr">6 pm</span></div>
+  </div>
+</div>
+
+<div class="btnrow">
+  <span class="blbl">Streams</span>
+  <button id="btn-kw"       class="btn on" style="--c:#d2a8ff" onclick="tog('kw')">      <span class="dot"></span>MW demand</button>
+  <button id="btn-kwtr"     class="btn on" style="--c:#ffffff" onclick="tog('kwtr')">    <span class="dot"></span>kW/TR</button>
+  <button id="btn-ambient"  class="btn on" style="--c:#39d353" onclick="tog('ambient')"> <span class="dot"></span>Ambient °F</button>
+  <button id="btn-icebrick" class="btn on" style="--c:#ffffff" onclick="tog('icebrick')"><span class="dot"></span>Direct savings</button>
+  <button id="btn-indirect" class="btn on" style="--c:#38bdf8" onclick="tog('indirect')"><span class="dot"></span>Indirect efficiency bonus</button>
+</div>
+
+<div class="statrow">
+  <div class="sc">
+    <div class="sk">Baseline peak</div>
+    <div class="sv2 cp" id="sBase">—</div>
+    <div class="ss">101 °F · 70% load · SLC-5</div>
+  </div>
+  <div class="sc">
+    <div class="sk">Shaved peak</div>
+    <div class="sv2 ca" id="sShaved">—</div>
+    <div class="ss" id="sSub">set storage →</div>
+  </div>
+  <div class="sc">
+    <div class="sk">Direct savings · peak hour</div>
+    <div class="sv2 ca" id="sDirect">—</div>
+    <div class="ss">storage displacement</div>
+  </div>
+  <div class="sc">
+    <div class="sk">Indirect bonus · peak hour</div>
+    <div class="sv2 cc" id="sIndirect">—</div>
+    <div class="ss" id="sIndPct">efficiency improvement</div>
+  </div>
+  <div class="sc" style="background:#3b0a0a;border-left:3px solid #e53e3e">
+    <div class="sk" style="color:#fc8181">RT-h / kW</div>
+    <div class="sv2 co" id="sWin">—</div>
+    <div class="ss" id="sWinR">RT-h per kW peak reduction</div>
+  </div>
+</div>
+
+<div class="legend">
+  <span style="color:#6b7280;font-size:10px;letter-spacing:1px">CHART LEGEND</span>
+  <span class="li"><span class="lb" style="background:#d2a8ff"></span>MW demand baseline</span>
+  <span class="li"><span class="lb" style="background:#ffffff"></span>kW/TR efficiency</span>
+  <span class="li"><span class="lsq" style="background:#ffffff"></span>Direct savings (storage)</span>
+  <span class="li"><span class="lsq" style="background:#38bdf8"></span>Indirect bonus (efficiency)</span>
+  <span class="li"><span class="lb" style="background:#60a5fa;opacity:.5;height:1px;border-top:1px dashed #60a5fa"></span>DR window</span>
+</div>
+
+<p class="ct">MW demand · kW/TR · 06:00 – 24:00</p>
+<div style="position:relative">
+  <canvas id="mainCanvas" aria-label="Chiller MW demand with IceBrick peak shaving zones and DR window"></canvas>
+  <canvas id="hairCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></canvas>
+</div>
+<div id="ambWrap"><canvas id="ambCanvas" aria-label="SLC ambient temperature"></canvas></div>
+<div class="dv"></div>
+<div class="ib" id="insight">Loading…</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+// Original hourly anchor values (6 am – 11 pm)
+const AMB_H = [76,79,83,87,91,95,98,100,101,101,100,98,95,91,88,85,83,81];
+const HL_H  = ['6 am','7 am','8 am','9 am','10 am','11 am','12 pm',
+               '1 pm','2 pm','3 pm','4 pm','5 pm','6 pm',
+               '7 pm','8 pm','9 pm','10 pm','11 pm'];
+
+// Catmull-Rom interpolation → quarter-hourly resolution (4 steps per hour)
+function crInterp(vals, steps=4){
+  const n=vals.length, out=[];
+  for(let i=0;i<n-1;i++){
+    const p0=vals[Math.max(i-1,0)],p1=vals[i],p2=vals[i+1],p3=vals[Math.min(i+2,n-1)];
+    for(let s=0;s<steps;s++){
+      const t=s/steps;
+      out.push(0.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t));
+    }
+  }
+  out.push(vals[n-1]);
+  return out;
+}
+const AMB = crInterp(AMB_H, 4); // 69 quarter-hourly ambient values
+const N   = AMB.length;          // 69  (17 hour-intervals × 4 + 1)
+const DT  = 0.25;                // time step = 15 min = 0.25 h
+
+// Labels: hourly text at every 4th point, blank otherwise
+const HL = Array.from({length:N}, (_,i) => i%4===0 ? HL_H[i/4] : '');
+
+// kW/ton calibrated to SLC-5 actuals Jul 30–Aug 1 2025, 70% system load
+// 1.08 kW/ton @ 67°F (night) → 1.43 kW/ton @ 99°F (peak), slope 0.0109/°F
+const ANC = [[50,0.89],[60,1.00],[70,1.11],[80,1.22],[90,1.33],[100,1.44]];
+
+function kwtr(T){
+  T=Math.max(50,Math.min(100,T));
+  for(let i=0;i<ANC.length-1;i++){
+    const[t0,v0]=ANC[i],[t1,v1]=ANC[i+1];
+    if(T>=t0&&T<=t1) return v0+(v1-v0)*(T-t0)/(t1-t0);
+  }
+  return ANC[ANC.length-1][1];
+}
+const KR = AMB.map(kwtr);   // kW/ton per hour
+const fmt = kw => (kw/1000).toFixed(2)+' MW';
+
+const BLOAD   = 70;          // baseline load %
+const EFF_K   = BLOAD*0.008; // = 0.56 — efficiency improvement constant
+// Each 1% load reduction from BLOAD gives 0.8% kW/ton improvement
+// Factor = 1 - EFF_K × (q_s/RT)
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let RT=2200, S=1000, drStart=10, drEnd=18;
+let BASE=[], PEAK=0, animTgt=0;
+let rafId=null;
+const ON={kw:true,kwtr:true,ambient:true,icebrick:true,indirect:true};
+
+function hLabel(h){
+  if(h===12) return '12 pm';
+  if(h<12) return h+' am';
+  return (h-12)+' pm';
+}
+
+// ── ANALYTICAL SOLVER FOR q_s ─────────────────────────────────────────────────
+// Given hour h and target kW, find RT displaced (q_s) accounting for efficiency
+// Equation: (RT-q_s) × KR[h] × (1 - EFF_K×q_s/RT) = kwT
+// Let x = q_s/RT → (1-x)(1-EFF_K·x) = kwT/BASE[h] = k
+// Expand: EFF_K·x² - (1+EFF_K)x + (1-k) = 0
+// x = [(1+EFF_K) - sqrt((1+EFF_K)²-4·EFF_K·(1-k))] / (2·EFF_K)
+function findQs(h, kwT){
+  if(kwT >= BASE[h]) return 0;       // no discharge needed
+  if(kwT <= 0) return RT*0.95;       // cap at 95% displacement
+  const k = kwT / BASE[h];           // target fraction of baseline
+  const a = EFF_K, b = 1+EFF_K, c = 1-k;
+  const disc = b*b - 4*a*c;
+  if(disc < 0) return 0;
+  const x = (b - Math.sqrt(disc)) / (2*a);  // smaller root
+  return Math.min(RT*0.95, Math.max(0, x*RT));
+}
+
+// noEffKw: what kW would be with ONLY direct savings (no efficiency improvement)
+function noEffKw(h, q_s){ return (RT-q_s)*KR[h]; }
+
+// ── OUTER SOLVER: find kW cut-line s.t. Σ q_s = S within DR window ───────────
+function solve(S){
+  if(S<=0) return PEAK;
+  const drA=(drStart-6)*4, drB=(drEnd-6)*4;
+  let lo=0, hi=PEAK;
+  for(let i=0;i<80;i++){
+    const kwT=(lo+hi)/2;
+    let sum=0;
+    for(let h=drA;h<drB;h++) sum+=findQs(h,kwT)*DT; // ×0.25 h → RT-h
+    sum>S ? lo=kwT : hi=kwT;
+  }
+  return (lo+hi)/2;
+}
+
+// ── BREAKDOWN CALCULATION ─────────────────────────────────────────────────────
+function breakdown(kwT){
+  const drA=(drStart-6)*4, drB=(drEnd-6)*4;
+  let totalRth=0, totalDirMWh=0, totalIndMWh=0;
+  let peakDirMW=0, peakIndMW=0;
+  // Highest-BASE discharge point in DR window
+  let peakH=drA;
+  for(let h=drA;h<drB;h++) if(BASE[h]>BASE[peakH]) peakH=h;
+
+  for(let h=drA;h<drB;h++){
+    if(BASE[h]<=kwT) continue;
+    const q_s=findQs(h,kwT);
+    const nek=noEffKw(h,q_s);
+    const dirKW = q_s*KR[h];
+    const indKW = nek-kwT;
+    totalDirMWh += dirKW*DT;   // ×0.25 h → kWh
+    totalIndMWh += indKW*DT;
+    totalRth    += q_s*DT;     // ×0.25 h → RT-h
+    if(h===peakH){ peakDirMW=dirKW; peakIndMW=indKW; }
+  }
+  return{peakDirMW, peakIndMW, totalDirMWh, totalIndMWh, totalRth};
+}
+
+// ── CATMULL-ROM SPLINE ────────────────────────────────────────────────────────
+function spline(ctx,pts,t=0.4){
+  if(pts.length<2) return;
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(i-1,0)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(i+2,pts.length-1)];
+    ctx.bezierCurveTo(p1.x+(p2.x-p0.x)*t,p1.y+(p2.y-p0.y)*t,
+      p2.x-(p3.x-p1.x)*t,p2.y-(p3.y-p1.y)*t,p2.x,p2.y);
+  }
+}
+function splineSeg(ctx,pts,a,b,t=0.4){
+  ctx.moveTo(pts[a].x,pts[a].y);
+  for(let i=a;i<b;i++){
+    const p0=pts[Math.max(i-1,0)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(i+2,pts.length-1)];
+    ctx.bezierCurveTo(p1.x+(p2.x-p0.x)*t,p1.y+(p2.y-p0.y)*t,
+      p2.x-(p3.x-p1.x)*t,p2.y-(p3.y-p1.y)*t,p2.x,p2.y);
+  }
+}
+
+// ── MAIN CHART ────────────────────────────────────────────────────────────────
+function drawMain(){
+  const cv=document.getElementById('mainCanvas');
+  const dpr=window.devicePixelRatio||1;
+  cv.width=cv.offsetWidth*dpr; cv.height=cv.offsetHeight*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const W=cv.offsetWidth,H=cv.offsetHeight;
+  const L=76,R=68,T=14,B=28;
+  const CW=W-L-R,CH=H-T-B;
+
+  const kwMax=Math.ceil(PEAK/200)*200+200;
+  const xp=h=>L+(h/(N-1))*CW;
+  const yp=kw=>T+CH-(kw/kwMax)*CH;
+  const yr=kr=>T+CH-(kr/1.6)*CH;
+
+  const bp=BASE.map((v,h)=>({x:xp(h),y:yp(v)}));
+  const rp=KR.map((v,h)=>({x:xp(h),y:yr(v)}));
+  const drA=(drStart-6)*4, drB=(drEnd-6)*4;
+  const yFlat=yp(animTgt);
+
+  // Per-hour discharge amounts (computed once per frame)
+  const QS=BASE.map((v,h)=>(h>=drA&&h<drB&&v>animTgt)?findQs(h,animTgt):0);
+  const noEffY=QS.map((q,h)=>yp(noEffKw(h,q)));
+  const dis=BASE.map((v,h)=>h>=drA&&h<drB&&v>animTgt);
+
+  ctx.clearRect(0,0,W,H);
+
+  // ── GRID ─────────────────────────────────────────────────────────────────
+  const steps=[100,200,250,500,1000,2000];
+  const tick=steps.find(s=>kwMax/s<=8)||2000;
+  ctx.strokeStyle='rgba(33,38,45,.9)';ctx.lineWidth=1;
+  ctx.font='10px SF Mono,Consolas,monospace'; ctx.textAlign='right';
+  for(let kw=0;kw<=kwMax;kw+=tick){
+    const y=yp(kw);
+    ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+CW,y);ctx.stroke();
+    ctx.fillStyle='#d2a8ff'; ctx.fillText((kw/1000).toFixed(2)+' MW',L-6,y+3.5);
+  }
+  ctx.textAlign='left';
+  [0,.2,.4,.6,.8,1.0,1.2,1.4,1.6].forEach(v=>{
+    const y=yr(v);
+    ctx.fillStyle='#ffffff'; ctx.fillText(v.toFixed(1)+' kW/TR',L+CW+8,y+3.5);
+  });
+  ctx.textAlign='center';
+  for(let h=0;h<N;h++){
+    const x=xp(h);
+    if(h%4===0){
+      // Hourly: full grid line + label
+      ctx.strokeStyle='rgba(33,38,45,.9)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+CH);ctx.stroke();
+      if(HL[h]) ctx.fillStyle='#484f58',ctx.fillText(HL[h],x,T+CH+17);
+    } else {
+      // Quarter-hourly: faint tick mark only at bottom
+      ctx.strokeStyle='rgba(33,38,45,.45)';ctx.lineWidth=0.5;
+      ctx.beginPath();ctx.moveTo(x,T+CH-4);ctx.lineTo(x,T+CH);ctx.stroke();
+    }
+  }
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;ctx.strokeRect(L,T,CW,CH);
+
+  // Axis titles
+  ctx.save();ctx.fillStyle='#d2a8ff';ctx.font='10px SF Mono,Consolas,monospace';
+  ctx.translate(L-58,T+CH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('MW',0,0);ctx.restore();
+  ctx.save();ctx.fillStyle='#ffffff';ctx.font='10px SF Mono,Consolas,monospace';
+  ctx.translate(L+CW+58,T+CH/2);ctx.rotate(Math.PI/2);ctx.textAlign='center';ctx.fillText('kW/TR',0,0);ctx.restore();
+
+  ctx.save(); ctx.beginPath(); ctx.rect(L,T,CW,CH); ctx.clip();
+
+  // ── DR WINDOW BACKGROUND ─────────────────────────────────────────────────
+  const xDrA=xp(drA),xDrB=xp(drB);
+  ctx.fillStyle='rgba(96,165,250,0.04)';
+  ctx.fillRect(xDrA,T,xDrB-xDrA,CH);
+  // DR window border lines
+  ctx.strokeStyle='rgba(96,165,250,0.25)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(xDrA,T);ctx.lineTo(xDrA,T+CH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(xDrB,T);ctx.lineTo(xDrB,T+CH);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── MW BASELINE (purple) ─────────────────────────────────────────────────
+  if(ON.kw){
+    const g=ctx.createLinearGradient(0,T,0,T+CH);
+    g.addColorStop(0,'rgba(210,168,255,.20)');g.addColorStop(1,'rgba(210,168,255,.02)');
+    ctx.beginPath();spline(ctx,bp);
+    ctx.lineTo(bp[N-1].x,T+CH);ctx.lineTo(bp[0].x,T+CH);ctx.closePath();
+    ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();spline(ctx,bp);
+    ctx.strokeStyle='#d2a8ff';ctx.lineWidth=2.5;ctx.stroke();
+    // Dots only at hourly positions (every 4th point)
+    bp.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#d2a8ff';ctx.fill();ctx.strokeStyle='#0d1117';ctx.lineWidth=1.8;ctx.stroke();});
+  }
+
+  // ── SAVINGS ZONES ─────────────────────────────────────────────────────────
+  const shaving = ON.icebrick && S>0 && animTgt<PEAK-1;
+  // xRight per segment: extend to window boundary if segment reaches DR end
+
+  let h=0;
+  while(h<N){
+    if(!dis[h]){h++;continue;}
+    const a=h; while(h<N&&dis[h]) h++; const b=h-1;
+    // If this segment reaches the DR window end, extend visually to the boundary
+    const xRight = (b===drB-1) ? xDrB : bp[b].x;
+
+    // INDIRECT BONUS zone (cyan): between noEffY line and cut-line (yFlat)
+    if(shaving && ON.indirect){
+      const ig=ctx.createLinearGradient(0,yFlat,0,Math.min(...Array.from({length:b-a+1},(_,i)=>noEffY[a+i])));
+      ig.addColorStop(0,'rgba(56,189,248,0.12)');
+      ig.addColorStop(1,'rgba(56,189,248,0.42)');
+      ctx.beginPath();
+      ctx.moveTo(bp[a].x,yFlat);
+      for(let i=a;i<=b;i++) ctx.lineTo(bp[i].x,noEffY[i]);
+      ctx.lineTo(xRight,noEffY[b]);   // extend top to window boundary
+      ctx.lineTo(xRight,yFlat);       // drop to cut-line at boundary
+      ctx.closePath();
+      ctx.fillStyle=ig;ctx.fill();
+    }
+
+    // DIRECT savings zone (amber): between baseline spline and noEffY line
+    if(shaving && ON.icebrick){
+      const ag=ctx.createLinearGradient(0,Math.min(...bp.slice(a,b+1).map(p=>p.y)),0,noEffY[a]);
+      ag.addColorStop(0,'rgba(255,255,255,0.55)');
+      ag.addColorStop(1,'rgba(255,255,255,0.18)');
+      ctx.beginPath();
+      ctx.moveTo(bp[a].x,noEffY[a]);
+      ctx.lineTo(bp[a].x,bp[a].y);
+      splineSeg(ctx,bp,a,b);              // top follows baseline spline to b
+      ctx.lineTo(xRight,bp[b].y);         // extend top flat to window boundary
+      ctx.lineTo(xRight,noEffY[b]);       // drop to noEff at boundary
+      ctx.lineTo(bp[b].x,noEffY[b]);      // back to b on noEff curve
+      for(let i=b-1;i>=a;i--) ctx.lineTo(bp[i].x,noEffY[i]);
+      ctx.closePath();
+      ctx.fillStyle=ag;ctx.fill();
+    }
+
+    // No-efficiency reference line (faint dashed white)
+    if(shaving && ON.indirect && ON.icebrick){
+      ctx.beginPath();
+      ctx.moveTo(bp[a].x,noEffY[a]);
+      for(let i=a+1;i<=b;i++) ctx.lineTo(bp[i].x,noEffY[i]);
+      ctx.lineTo(xRight,noEffY[b]);       // extend to window boundary
+      ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // CUT-LINE (dashed amber at actual shaved demand)
+    if(shaving){
+      ctx.beginPath();ctx.moveTo(bp[a].x,yFlat);ctx.lineTo(xRight,yFlat);
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // ── kW/TR LINE ────────────────────────────────────────────────────────────
+  if(ON.kwtr){
+    ctx.beginPath();spline(ctx,rp);
+    ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();
+    rp.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#ffffff';ctx.fill();ctx.strokeStyle='#0d1117';ctx.lineWidth=1.8;ctx.stroke();});
+  }
+
+  ctx.restore();
+
+  // ── BRACKET ANNOTATION ────────────────────────────────────────────────────
+  if(shaving){
+    const pkI=BASE.indexOf(PEAK);
+    const xBr=xp(pkI)+26;
+    const yTop=yp(PEAK),yBot=yFlat;
+    if(yBot-yTop>14){
+      const mid=(yTop+yBot)/2;
+      const red=PEAK-animTgt;
+      // Breakdown at peak hour
+      const q_pk=findQs(pkI,animTgt);
+      const nek=noEffKw(pkI,q_pk);
+      const yMid=yp(nek); // noEff line at peak hour
+
+      ctx.save();
+      // Bracket line
+      ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.setLineDash([]);
+      ctx.beginPath();ctx.moveTo(xBr,yTop+4);ctx.lineTo(xBr,yBot-4);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(xBr-5,yTop);ctx.lineTo(xBr+5,yTop);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(xBr-5,yBot);ctx.lineTo(xBr+5,yBot);ctx.stroke();
+      // Arrows
+      ctx.fillStyle='rgba(255,255,255,.85)';
+      ctx.beginPath();ctx.moveTo(xBr,yTop);ctx.lineTo(xBr-4,yTop+9);ctx.lineTo(xBr+4,yTop+9);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(xBr,yBot);ctx.lineTo(xBr-4,yBot-9);ctx.lineTo(xBr+4,yBot-9);ctx.closePath();ctx.fill();
+      // Separator line at noEff level (showing the split)
+      if(ON.indirect && yMid>yTop+4 && yMid<yBot-4){
+        ctx.strokeStyle='rgba(56,189,248,.6)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+        ctx.beginPath();ctx.moveTo(xBr-5,yMid);ctx.lineTo(xBr+5,yMid);ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // Labels
+      const l1='−'+fmt(red);
+      const l2='↑ '+fmt(q_pk*KR[pkI])+' direct';
+      const l3='↑ '+fmt(nek-animTgt)+' indirect';
+      ctx.font='bold 11px SF Mono,Consolas,monospace';
+      const tw=Math.max(ctx.measureText(l1).width,ctx.measureText(l2).width,ctx.measureText(l3).width);
+      ctx.fillStyle='rgba(13,17,23,.92)';ctx.fillRect(xBr+8,mid-38,tw+16,60);
+      ctx.fillStyle='#ffffff';ctx.textAlign='left';ctx.font='bold 12px SF Mono,Consolas,monospace';
+      ctx.fillText(l1,xBr+15,mid-18);
+      ctx.font='9px SF Mono,Consolas,monospace';ctx.fillStyle='rgba(255,255,255,.75)';
+      ctx.fillText(l2,xBr+15,mid-2);
+      ctx.fillStyle='rgba(56,189,248,.75)';
+      ctx.fillText(l3,xBr+15,mid+13);
+      ctx.restore();
+    }
+  }
+}
+
+// ── AMBIENT CHART ─────────────────────────────────────────────────────────────
+function drawAmb(){
+  if(!ON.ambient){document.getElementById('ambWrap').style.display='none';return;}
+  document.getElementById('ambWrap').style.display='';
+  const cv=document.getElementById('ambCanvas');
+  const dpr=window.devicePixelRatio||1;
+  cv.width=cv.offsetWidth*dpr;cv.height=cv.offsetHeight*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  const W=cv.offsetWidth,H=cv.offsetHeight;
+  const L=76,R=68,T=8,B=24;
+  const CW=W-L-R,CH=H-T-B;
+  const xp=h=>L+(h/(N-1))*CW;
+  const yp=t=>T+CH-((t-50)/70)*CH;
+  const pts=AMB.map((v,h)=>({x:xp(h),y:yp(v)}));
+  ctx.clearRect(0,0,W,H);
+  [60,70,80,90,100].forEach(t=>{
+    const y=yp(t);
+    ctx.strokeStyle='rgba(33,38,45,.9)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+CW,y);ctx.stroke();
+    ctx.fillStyle='#39d353';ctx.textAlign='right';ctx.font='10px SF Mono,Consolas,monospace';
+    ctx.fillText(t+' °F',L-6,y+3.5);
+  });
+  for(let h=0;h<N;h++){
+    const x=xp(h);
+    if(h%4===0){
+      ctx.strokeStyle='rgba(33,38,45,.9)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+CH);ctx.stroke();
+      if(HL[h]) ctx.fillStyle='#484f58',ctx.textAlign='center',ctx.font='10px SF Mono,Consolas,monospace',ctx.fillText(HL[h],x,T+CH+16);
+    } else {
+      ctx.strokeStyle='rgba(33,38,45,.45)';ctx.lineWidth=0.5;
+      ctx.beginPath();ctx.moveTo(x,T+CH-4);ctx.lineTo(x,T+CH);ctx.stroke();
+    }
+  }
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;ctx.strokeRect(L,T,CW,CH);
+  ctx.save();ctx.fillStyle='#39d353';ctx.font='10px SF Mono,Consolas,monospace';
+  ctx.translate(L-58,T+CH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('°F',0,0);ctx.restore();
+  // DR window highlight
+  const drA=(drStart-6)*4,drB=(drEnd-6)*4;
+  ctx.fillStyle='rgba(96,165,250,0.06)';
+  ctx.fillRect(xp(drA),T,xp(drB)-xp(drA),CH);
+  ctx.save();ctx.beginPath();ctx.rect(L,T,CW,CH);ctx.clip();
+  const g=ctx.createLinearGradient(0,T,0,T+CH);
+  g.addColorStop(0,'rgba(57,211,83,.18)');g.addColorStop(1,'rgba(57,211,83,.02)');
+  ctx.beginPath();spline(ctx,pts);
+  ctx.lineTo(pts[N-1].x,T+CH);ctx.lineTo(pts[0].x,T+CH);ctx.closePath();
+  ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();spline(ctx,pts);
+  ctx.strokeStyle='#39d353';ctx.lineWidth=2;ctx.stroke();
+  pts.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#39d353';ctx.fill();ctx.strokeStyle='#0d1117';ctx.lineWidth=1.8;ctx.stroke();});
+  ctx.restore();
+}
+
+function redraw(){drawMain();drawAmb();}
+
+// ── STATS + INSIGHT ───────────────────────────────────────────────────────────
+function stats(kwT){
+  const{peakDirMW, peakIndMW, totalDirMWh, totalIndMWh, totalRth}=breakdown(kwT);
+  const totalRed=Math.max(0,PEAK-kwT);   // instantaneous MW at peak hour
+  const disHours=drEnd-drStart;
+
+  document.getElementById('sBase').textContent=fmt(PEAK);
+
+  if(S>0&&totalRed>0.5){
+    const indPct=totalRed>0?(peakIndMW/totalRed*100).toFixed(0):'0';
+    document.getElementById('sShaved').textContent=fmt(kwT);
+    document.getElementById('sSub').textContent='instantaneous at peak hour';
+    document.getElementById('sDirect').textContent=fmt(peakDirMW);
+    document.getElementById('sIndirect').textContent=fmt(peakIndMW);
+    document.getElementById('sIndPct').textContent=indPct+'% of peak-hour savings';
+    document.getElementById('sWin').textContent=(S/Math.max(1,totalRed)).toFixed(1)+' RT-h/kW';
+    document.getElementById('sWinR').textContent=hLabel(drStart)+' – '+hLabel(drEnd)+' · '+disHours+' h';
+
+    const fmtMWh = mwh => (mwh/1000).toFixed(2)+' MWh';
+    const avgLoad = totalRth>0?(BLOAD - BLOAD*totalRth/RT/Math.max(1,disHours)).toFixed(0):BLOAD;
+    document.getElementById('insight').innerHTML=
+      `DR window <span class="dr">${hLabel(drStart)} – ${hLabel(drEnd)}</span> · `+
+      `<span class="a">${S.toLocaleString()} RT-h</span> of IceBrick.`+
+      ` Peak demand: <span class="p">${fmt(PEAK)}</span> → <span class="a">${fmt(kwT)}</span>`+
+      ` (<span class="g">−${fmt(totalRed)}, −${(totalRed/PEAK*100).toFixed(1)}%</span>).`+
+      ` At peak hour: <span class="a">${fmt(peakDirMW)} direct</span> (storage displaces tons)`+
+      ` + <span class="c">${fmt(peakIndMW)} indirect</span> (efficiency bonus, ${indPct}% of savings).`+
+      ` Over full window: <span class="a">${fmtMWh(totalDirMWh)} direct</span>`+
+      ` + <span class="c">${fmtMWh(totalIndMWh)} indirect</span> energy reduction.`+
+      ` Avg chiller load during DR: ~${avgLoad}%.`+
+      ` RT-h used: <b>${Math.round(totalRth).toLocaleString()}</b> of ${S.toLocaleString()}.`+
+      ` <span style="color:#484f58">Ratio: ${(S/Math.max(1,totalRed)).toFixed(1)} RT-h per kW peak reduction.</span>`;
+  } else {
+    document.getElementById('sShaved').textContent='—';
+    document.getElementById('sSub').textContent='set storage →';
+    document.getElementById('sDirect').textContent='—';
+    document.getElementById('sIndirect').textContent='—';
+    document.getElementById('sIndPct').textContent='efficiency improvement';
+    document.getElementById('sWin').textContent='—';
+    document.getElementById('sWinR').textContent=hLabel(drStart)+' – '+hLabel(drEnd);
+    document.getElementById('insight').innerHTML=
+      `At <b>${RT.toLocaleString()} RT</b> IT load (${BLOAD}% chiller load), demand runs`+
+      ` <span class="p">${fmt(BASE[0])} at 6 am</span> (76 °F · <span class="o">${KR[0].toFixed(2)} kW/TR</span>)`+
+      ` → <span class="p">${fmt(PEAK)} at peak</span> (101 °F · <span class="o">${Math.max(...KR).toFixed(2)} kW/TR</span>).`+
+      ` Adjust <span class="a">IceBrick storage</span> and set the <span class="dr">DR window</span> to animate peak shaving.`+
+      ` The <span class="c">cyan zone</span> shows the indirect efficiency bonus from reduced chiller load during discharge.`;
+  }
+}
+
+// ── ANIMATION ─────────────────────────────────────────────────────────────────
+function ease(t){return 1-Math.pow(1-t,3);}
+function doAnim(from,to){
+  if(rafId) cancelAnimationFrame(rafId);
+  const t0=performance.now(),DUR=900;
+  function go(now){
+    const p=Math.min((now-t0)/DUR,1);
+    animTgt=from+(to-from)*ease(p);
+    redraw();stats(animTgt);
+    if(p<1) rafId=requestAnimationFrame(go);
+    else{animTgt=to;redraw();stats(to);}
+  }
+  rafId=requestAnimationFrame(go);
+}
+
+// ── TOGGLES ───────────────────────────────────────────────────────────────────
+function tog(name){
+  ON[name]=!ON[name];
+  document.getElementById('btn-'+name).className='btn '+(ON[name]?'on':'off');
+  redraw();
+}
+
+// ── INIT BASELINE ─────────────────────────────────────────────────────────────
+function init(){
+  BASE=KR.map(r=>r*RT);
+  PEAK=Math.max(...BASE);
+  const tgt=S>0?solve(S):PEAK;
+  animTgt=tgt;
+  redraw();stats(tgt);
+}
+
+// ── SLIDERS ───────────────────────────────────────────────────────────────────
+document.getElementById('rtSlider').addEventListener('input',function(){
+  RT=+this.value;
+  document.getElementById('rtVal').textContent=RT.toLocaleString();
+  BASE=KR.map(r=>r*RT); PEAK=Math.max(...BASE);
+  animTgt=S>0?solve(S):PEAK;
+  redraw();stats(animTgt);
+});
+
+document.getElementById('sSlider').addEventListener('input',function(){
+  S=+this.value;
+  document.getElementById('sVal').textContent=S.toLocaleString();
+  doAnim(animTgt,S>0?solve(S):PEAK);
+});
+
+document.getElementById('drSSlider').addEventListener('input',function(){
+  drStart=+this.value;
+  if(drStart>=drEnd){drEnd=drStart+1;document.getElementById('drESlider').value=drEnd;}
+  document.getElementById('drSVal').textContent=hLabel(drStart);
+  document.getElementById('drEVal').textContent=hLabel(drEnd);
+  doAnim(animTgt,S>0?solve(S):PEAK);
+});
+
+document.getElementById('drESlider').addEventListener('input',function(){
+  drEnd=+this.value;
+  if(drEnd<=drStart){drStart=drEnd-1;document.getElementById('drSSlider').value=drStart;}
+  document.getElementById('drSVal').textContent=hLabel(drStart);
+  document.getElementById('drEVal').textContent=hLabel(drEnd);
+  doAnim(animTgt,S>0?solve(S):PEAK);
+});
+
+window.addEventListener('resize',()=>redraw());
+
+// ── TOOLTIP + HAIRLINE ────────────────────────────────────────────────────────
+function idxTime(h){
+  const hour=Math.floor(6+h/4), min=(h%4)*15;
+  const h12=hour===12?12:hour>12?hour-12:hour;
+  return h12+':'+String(min).padStart(2,'0')+(hour<12?' am':' pm');
+}
+
+function drawHair(h){
+  const cv=document.getElementById('hairCanvas');
+  const dpr=window.devicePixelRatio||1;
+  cv.width=cv.offsetWidth*dpr; cv.height=cv.offsetHeight*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const W=cv.offsetWidth,H=cv.offsetHeight;
+  const L=76,T=14,B=28,R=68,CW=W-L-R,CH=H-T-B;
+  ctx.clearRect(0,0,W,H);
+  const x=L+(h/(N-1))*CW;
+  // Vertical hairline
+  ctx.strokeStyle='rgba(255,255,255,0.22)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+CH);ctx.stroke();ctx.setLineDash([]);
+  // Dot on baseline curve
+  const kwMax=Math.ceil(PEAK/200)*200+200;
+  const yBase=T+CH-(BASE[h]/kwMax)*CH;
+  ctx.beginPath();ctx.arc(x,yBase,4.5,0,Math.PI*2);
+  ctx.fillStyle='#d2a8ff';ctx.fill();
+  ctx.strokeStyle='#0d1117';ctx.lineWidth=2;ctx.stroke();
+  // Dot on kW/TR curve (right axis)
+  const yKr=T+CH-(KR[h]/1.6)*CH;
+  ctx.beginPath();ctx.arc(x,yKr,4,0,Math.PI*2);
+  ctx.fillStyle='#ffffff';ctx.fill();
+  ctx.strokeStyle='#0d1117';ctx.lineWidth=2;ctx.stroke();
+}
+
+function clearHair(){
+  const cv=document.getElementById('hairCanvas');
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+}
+
+function showTip(cx,cy,h){
+  const base=BASE[h], amb=AMB[h], kr=KR[h];
+  const drA=(drStart-6)*4, drB=(drEnd-6)*4;
+  const inDR=h>=drA&&h<drB;
+  const shaving=S>0&&animTgt<PEAK-1;
+
+  let rows=`<div style="color:#484f58;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${idxTime(h)}</div>`;
+  const row=(lbl,val,c='#c9d1d9')=>`<div style="display:flex;justify-content:space-between;gap:18px;margin-bottom:3px"><span style="color:#484f58">${lbl}</span><span style="color:${c}">${val}</span></div>`;
+  rows += row('Ambient',amb.toFixed(1)+' °F','#39d353');
+  rows += row('Baseline',fmt(base),'#d2a8ff');
+  rows += row('kW/TR',kr.toFixed(2)+' kW/TR','#ffffff');
+
+  if(shaving&&inDR&&base>animTgt){
+    const q_s=findQs(h,animTgt);
+    const nek=noEffKw(h,q_s);
+    const dirKW=q_s*KR[h], indKW=nek-animTgt;
+    rows+=`<div style="border-top:1px solid #21262d;margin:6px 0 5px"></div>`;
+    rows+=row('Shaved demand',fmt(animTgt),'#ffffff');
+    rows+=row('↓ Direct',fmt(dirKW),'#ffffff');
+    rows+=row('↓ Indirect',fmt(indKW),'#38bdf8');
+  }
+
+  const tt=document.getElementById('tip');
+  tt.innerHTML=rows; tt.style.display='block';
+  const tw=220, pad=14;
+  let tx=cx+pad, ty=cy-14;
+  if(tx+tw>window.innerWidth-8) tx=cx-tw-pad;
+  if(ty+180>window.innerHeight) ty=window.innerHeight-185;
+  tt.style.left=tx+'px'; tt.style.top=ty+'px';
+}
+
+function hideTip(){
+  document.getElementById('tip').style.display='none';
+  clearHair();
+}
+
+document.getElementById('mainCanvas').addEventListener('mousemove',function(e){
+  const rect=this.getBoundingClientRect();
+  const mx=e.clientX-rect.left;
+  const L=76, CW=this.offsetWidth-76-68;
+  if(mx<L||mx>L+CW){hideTip();return;}
+  const h=Math.max(0,Math.min(N-1,Math.round((mx-L)/CW*(N-1))));
+  drawHair(h);
+  showTip(e.clientX,e.clientY,h);
+});
+document.getElementById('mainCanvas').addEventListener('mouseleave',hideTip);
+
+init();
+</script>
+<div id="tip" style="position:fixed;pointer-events:none;display:none;z-index:999;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px 14px;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:#c9d1d9;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5)"></div>
+</body>
+</html>
