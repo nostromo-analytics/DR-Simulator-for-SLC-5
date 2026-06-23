@@ -51,9 +51,34 @@ canvas{display:block;width:100%}
 .li{display:flex;align-items:center;gap:5px}
 .lb{width:18px;height:3px;border-radius:1px;flex-shrink:0}
 .lsq{width:10px;height:10px;border-radius:2px;flex-shrink:0;opacity:.7}
+
+/* theme toggle */
+#themeBtn{position:fixed;top:16px;right:22px;z-index:1000;font-family:inherit;font-size:11px;letter-spacing:.5px;
+  padding:7px 13px;border-radius:20px;border:1px solid #d0d7de;background:#ffffff;color:#1f2328;cursor:pointer;transition:all .15s}
+#themeBtn:hover{border-color:#8c959f}
+
+/* dark mode */
+[data-theme="dark"] body{background:#0d1117;color:#e6edf3}
+[data-theme="dark"] h1{color:#e6edf3}
+[data-theme="dark"] .sv,[data-theme="dark"] .sv2,[data-theme="dark"] .co,[data-theme="dark"] .cw{color:#e6edf3}
+[data-theme="dark"] .sv .am{color:#adbac7}
+[data-theme="dark"] .statrow{background:#30363d;border-color:#30363d}
+[data-theme="dark"] .sc{background:#161b22}
+[data-theme="dark"] input[type=range]{background:#30363d}
+[data-theme="dark"] input[type=range]::-webkit-slider-thumb{background:#e6edf3;border-color:#0d1117;box-shadow:0 0 0 1px #6e7781}
+[data-theme="dark"] input[type=range]::-moz-range-thumb{background:#e6edf3;border-color:#0d1117}
+[data-theme="dark"] .btn.on{background:rgba(230,237,243,.08)}
+[data-theme="dark"] .btn.off{border-color:#30363d}
+[data-theme="dark"] .dv{background:#30363d}
+[data-theme="dark"] .ib{border-color:#30363d;color:#9da7b3}
+[data-theme="dark"] .ib b{color:#e6edf3}
+[data-theme="dark"] #ambCanvas{border-color:#21262d}
+[data-theme="dark"] #themeBtn{border-color:#30363d;background:#161b22;color:#e6edf3}
+[data-theme="dark"] #themeBtn:hover{border-color:#6e7781}
 </style>
 </head>
 <body>
+<button id="themeBtn" onclick="DARK=!DARK;applyTheme()">☾ Dark</button>
 
 <p class="pg">DataBank · SLC-5 · Cooling Analysis</p>
 <h1 style="color:#cf222e;font-weight:700">Nostromo IceBrick DR simulator for DataBank SLC-5 | Salt Lake City</h1>
@@ -201,6 +226,26 @@ let RT=2200, S=0, drStart=12, drEnd=19;
 let BASE=[], PEAK=0, animTgt=0;
 let rafId=null;
 const ON={kw:true,kwtr:true,ambient:true,icebrick:true,indirect:true};
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+let DARK=false;
+const TH={};
+function applyTheme(){
+  document.documentElement.dataset.theme = DARK ? 'dark' : 'light';
+  TH.grid      = DARK?'rgba(110,118,129,.30)':'rgba(208,215,222,.9)';
+  TH.gridFaint = DARK?'rgba(110,118,129,.16)':'rgba(208,215,222,.45)';
+  TH.border    = DARK?'#30363d':'#d0d7de';
+  TH.ink       = DARK?'#c9d1d9':'#24292f';
+  TH.halo      = DARK?'#0d1117':'#ffffff';
+  TH.haloA     = DARK?'rgba(13,17,23,.85)':'rgba(255,255,255,.85)';
+  TH.brk       = DARK?'rgba(201,209,217,.85)':'rgba(36,41,47,.85)';
+  TH.noEff     = DARK?'rgba(201,209,217,.22)':'rgba(36,41,47,0.18)';
+  TH.hair      = DARK?'rgba(201,209,217,.30)':'rgba(36,41,47,0.22)';
+  const tt=document.getElementById('tip');
+  if(tt){ tt.style.background=DARK?'#161b22':'#f6f8fa'; tt.style.borderColor=DARK?'#30363d':'#d0d7de'; tt.style.color=DARK?'#e6edf3':'#1f2328'; }
+  const btn=document.getElementById('themeBtn'); if(btn) btn.textContent=DARK?'☀ Light':'☾ Dark';
+  if(typeof redraw==='function' && BASE.length) redraw();
+}
 
 function hLabel(h){
   if(h===12) return '12 pm';
@@ -353,7 +398,7 @@ function drawMain(){
   // ── GRID ─────────────────────────────────────────────────────────────────
   const steps=[100,200,250,500,1000,2000];
   const tick=steps.find(s=>kwMax/s<=8)||2000;
-  ctx.strokeStyle='rgba(208,215,222,.9)';ctx.lineWidth=1;
+  ctx.strokeStyle=TH.grid;ctx.lineWidth=1;
   ctx.font='10px SF Mono,Consolas,monospace'; ctx.textAlign='right';
   for(let kw=0;kw<=kwMax;kw+=tick){
     const y=yp(kw);
@@ -363,28 +408,28 @@ function drawMain(){
   ctx.textAlign='left';
   [0,.2,.4,.6,.8,1.0,1.2,1.4,1.6].forEach(v=>{
     const y=yr(v);
-    ctx.fillStyle='#24292f'; ctx.fillText(v.toFixed(1)+' kW/TR',L+CW+8,y+3.5);
+    ctx.fillStyle=TH.ink; ctx.fillText(v.toFixed(1)+' kW/TR',L+CW+8,y+3.5);
   });
   ctx.textAlign='center';
   for(let h=0;h<N;h++){
     const x=xp(h);
     if(h%4===0){
       // Hourly: full grid line + label
-      ctx.strokeStyle='rgba(208,215,222,.9)';ctx.lineWidth=1;
+      ctx.strokeStyle=TH.grid;ctx.lineWidth=1;
       ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+CH);ctx.stroke();
       if(HL[h]) ctx.fillStyle='#6e7781',ctx.fillText(HL[h],x,T+CH+17);
     } else {
       // Quarter-hourly: faint tick mark only at bottom
-      ctx.strokeStyle='rgba(208,215,222,.45)';ctx.lineWidth=0.5;
+      ctx.strokeStyle=TH.gridFaint;ctx.lineWidth=0.5;
       ctx.beginPath();ctx.moveTo(x,T+CH-4);ctx.lineTo(x,T+CH);ctx.stroke();
     }
   }
-  ctx.strokeStyle='#d0d7de';ctx.lineWidth=1;ctx.strokeRect(L,T,CW,CH);
+  ctx.strokeStyle=TH.border;ctx.lineWidth=1;ctx.strokeRect(L,T,CW,CH);
 
   // Axis titles
   ctx.save();ctx.fillStyle='#8250df';ctx.font='10px SF Mono,Consolas,monospace';
   ctx.translate(L-58,T+CH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('MW',0,0);ctx.restore();
-  ctx.save();ctx.fillStyle='#24292f';ctx.font='10px SF Mono,Consolas,monospace';
+  ctx.save();ctx.fillStyle=TH.ink;ctx.font='10px SF Mono,Consolas,monospace';
   ctx.translate(L+CW+58,T+CH/2);ctx.rotate(Math.PI/2);ctx.textAlign='center';ctx.fillText('kW/TR',0,0);ctx.restore();
 
   ctx.save(); ctx.beginPath(); ctx.rect(L,T,CW,CH); ctx.clip();
@@ -409,7 +454,7 @@ function drawMain(){
     ctx.beginPath();spline(ctx,bp);
     ctx.strokeStyle='#8250df';ctx.lineWidth=2.5;ctx.stroke();
     // Dots only at hourly positions (every 4th point)
-    bp.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#8250df';ctx.fill();ctx.strokeStyle='#ffffff';ctx.lineWidth=1.8;ctx.stroke();});
+    bp.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#8250df';ctx.fill();ctx.strokeStyle=TH.halo;ctx.lineWidth=1.8;ctx.stroke();});
   }
 
   // ── SAVINGS ZONES ─────────────────────────────────────────────────────────
@@ -460,14 +505,14 @@ function drawMain(){
       ctx.moveTo(bp[a].x,noEffY[a]);
       for(let i=a+1;i<=b;i++) ctx.lineTo(bp[i].x,noEffY[i]);
       ctx.lineTo(xRight,noEffY[b]);       // extend to window boundary
-      ctx.strokeStyle='rgba(36,41,47,0.18)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();
+      ctx.strokeStyle=TH.noEff;ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();
       ctx.setLineDash([]);
     }
 
     // CUT-LINE (dashed amber at actual shaved demand)
     if(shaving){
       ctx.beginPath();ctx.moveTo(bp[a].x,yFlat);ctx.lineTo(xRight,yFlat);
-      ctx.strokeStyle='#24292f';ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.stroke();
+      ctx.strokeStyle=TH.ink;ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.stroke();
       ctx.setLineDash([]);
     }
   }
@@ -483,7 +528,7 @@ function drawMain(){
         p2.x-(p3.x-p1.x)*t,p2.y-(p3.y-p1.y)*t,p2.x,p2.y);
       ctx.strokeStyle=krColor((kre[i]+kre[i+1])/2);ctx.stroke();
     }
-    rp.forEach((p,h)=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle=krColor(kre[h]);ctx.fill();ctx.strokeStyle='#ffffff';ctx.lineWidth=1.8;ctx.stroke();});
+    rp.forEach((p,h)=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle=krColor(kre[h]);ctx.fill();ctx.strokeStyle=TH.halo;ctx.lineWidth=1.8;ctx.stroke();});
   }
 
   ctx.restore();
@@ -504,7 +549,7 @@ function drawMain(){
       const yLbl=yp(avgMW/2);            // vertical average of remaining cooling
       ctx.save();
       ctx.textAlign='center';ctx.lineJoin='round';ctx.lineWidth=3;
-      ctx.strokeStyle='rgba(255,255,255,.85)';
+      ctx.strokeStyle=TH.haloA;
       ctx.font='10px SF Mono,Consolas,monospace';
       ctx.strokeText('CHILLERS LOAD',xMid,yLbl-9);
       ctx.fillStyle='rgba(130,80,223,.95)';ctx.fillText('CHILLERS LOAD',xMid,yLbl-9);
@@ -529,12 +574,12 @@ function drawMain(){
 
       ctx.save();
       // Bracket line
-      ctx.strokeStyle='rgba(36,41,47,.85)';ctx.lineWidth=1.5;ctx.setLineDash([]);
+      ctx.strokeStyle=TH.brk;ctx.lineWidth=1.5;ctx.setLineDash([]);
       ctx.beginPath();ctx.moveTo(xBr,yTop+4);ctx.lineTo(xBr,yBot-4);ctx.stroke();
       ctx.beginPath();ctx.moveTo(xBr-5,yTop);ctx.lineTo(xBr+5,yTop);ctx.stroke();
       ctx.beginPath();ctx.moveTo(xBr-5,yBot);ctx.lineTo(xBr+5,yBot);ctx.stroke();
       // Arrows
-      ctx.fillStyle='rgba(36,41,47,.85)';
+      ctx.fillStyle=TH.brk;
       ctx.beginPath();ctx.moveTo(xBr,yTop);ctx.lineTo(xBr-4,yTop+9);ctx.lineTo(xBr+4,yTop+9);ctx.closePath();ctx.fill();
       ctx.beginPath();ctx.moveTo(xBr,yBot);ctx.lineTo(xBr-4,yBot-9);ctx.lineTo(xBr+4,yBot-9);ctx.closePath();ctx.fill();
       // Separator line at noEff level (showing the split)
@@ -603,7 +648,7 @@ function drawAmb(){
   ctx.clearRect(0,0,W,H);
   [60,70,80,90,100].forEach(t=>{
     const y=yp(t);
-    ctx.strokeStyle='rgba(208,215,222,.9)';ctx.lineWidth=1;
+    ctx.strokeStyle=TH.grid;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+CW,y);ctx.stroke();
     ctx.fillStyle='#1a7f37';ctx.textAlign='right';ctx.font='10px SF Mono,Consolas,monospace';
     ctx.fillText(t+' °F',L-6,y+3.5);
@@ -611,15 +656,15 @@ function drawAmb(){
   for(let h=0;h<N;h++){
     const x=xp(h);
     if(h%4===0){
-      ctx.strokeStyle='rgba(208,215,222,.9)';ctx.lineWidth=1;
+      ctx.strokeStyle=TH.grid;ctx.lineWidth=1;
       ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+CH);ctx.stroke();
       if(HL[h]) ctx.fillStyle='#6e7781',ctx.textAlign='center',ctx.font='10px SF Mono,Consolas,monospace',ctx.fillText(HL[h],x,T+CH+16);
     } else {
-      ctx.strokeStyle='rgba(208,215,222,.45)';ctx.lineWidth=0.5;
+      ctx.strokeStyle=TH.gridFaint;ctx.lineWidth=0.5;
       ctx.beginPath();ctx.moveTo(x,T+CH-4);ctx.lineTo(x,T+CH);ctx.stroke();
     }
   }
-  ctx.strokeStyle='#d0d7de';ctx.lineWidth=1;ctx.strokeRect(L,T,CW,CH);
+  ctx.strokeStyle=TH.border;ctx.lineWidth=1;ctx.strokeRect(L,T,CW,CH);
   ctx.save();ctx.fillStyle='#1a7f37';ctx.font='10px SF Mono,Consolas,monospace';
   ctx.translate(L-58,T+CH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('°F',0,0);ctx.restore();
   // DR window highlight
@@ -634,7 +679,7 @@ function drawAmb(){
   ctx.fillStyle=g;ctx.fill();
   ctx.beginPath();spline(ctx,pts);
   ctx.strokeStyle='#1a7f37';ctx.lineWidth=2;ctx.stroke();
-  pts.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#1a7f37';ctx.fill();ctx.strokeStyle='#ffffff';ctx.lineWidth=1.8;ctx.stroke();});
+  pts.filter((_,i)=>i%4===0).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle='#1a7f37';ctx.fill();ctx.strokeStyle=TH.halo;ctx.lineWidth=1.8;ctx.stroke();});
   ctx.restore();
 }
 
@@ -777,19 +822,19 @@ function drawHair(h){
   ctx.clearRect(0,0,W,H);
   const x=L+(h/(N-1))*CW;
   // Vertical hairline
-  ctx.strokeStyle='rgba(36,41,47,0.22)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+  ctx.strokeStyle=TH.hair;ctx.lineWidth=1;ctx.setLineDash([3,4]);
   ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+CH);ctx.stroke();ctx.setLineDash([]);
   // Dot on baseline curve
   const kwMax=Math.ceil(PEAK/200)*200+200;
   const yBase=T+CH-(BASE[h]/kwMax)*CH;
   ctx.beginPath();ctx.arc(x,yBase,4.5,0,Math.PI*2);
   ctx.fillStyle='#8250df';ctx.fill();
-  ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle=TH.halo;ctx.lineWidth=2;ctx.stroke();
   // Dot on kW/TR curve (right axis)
   const yKr=T+CH-(krEff(h)/1.6)*CH;
   ctx.beginPath();ctx.arc(x,yKr,4,0,Math.PI*2);
   ctx.fillStyle=krColor(krEff(h));ctx.fill();
-  ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle=TH.halo;ctx.lineWidth=2;ctx.stroke();
 }
 
 function clearHair(){
@@ -805,17 +850,17 @@ function showTip(cx,cy,h){
   const shaving=S>0&&animTgt<PEAK-1;
 
   let rows=`<div style="color:#6e7781;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${idxTime(h)}</div>`;
-  const row=(lbl,val,c='#1f2328')=>`<div style="display:flex;justify-content:space-between;gap:18px;margin-bottom:3px"><span style="color:#6e7781">${lbl}</span><span style="color:${c}">${val}</span></div>`;
+  const row=(lbl,val,c=TH.ink)=>`<div style="display:flex;justify-content:space-between;gap:18px;margin-bottom:3px"><span style="color:#6e7781">${lbl}</span><span style="color:${c}">${val}</span></div>`;
   rows += row('Ambient',amb.toFixed(1)+' °F','#1a7f37');
   rows += row('Baseline',fmt(base),'#8250df');
-  rows += row('kW/TR',kr.toFixed(2)+' kW/TR','#24292f');
+  rows += row('kW/TR',kr.toFixed(2)+' kW/TR',TH.ink);
 
   if(shaving&&inDR&&base>animTgt){
     const q_s=findQs(h,animTgt);
     const nek=noEffKw(h,q_s);
     const dirKW=q_s*KR[h], indKW=nek-animTgt;
-    rows+=`<div style="border-top:1px solid #d0d7de;margin:6px 0 5px"></div>`;
-    rows+=row('Shaved demand',fmt(animTgt),'#24292f');
+    rows+=`<div style="border-top:1px solid ${TH.border};margin:6px 0 5px"></div>`;
+    rows+=row('Shaved demand',fmt(animTgt),TH.ink);
     rows+=row('↓ Shifted by IceBrick',fmt(dirKW),'#2f7bf6');
     rows+=row('↓ Improved Chiller Efficiency',fmt(indKW),'#9333ea');
   }
@@ -845,6 +890,7 @@ document.getElementById('mainCanvas').addEventListener('mousemove',function(e){
 });
 document.getElementById('mainCanvas').addEventListener('mouseleave',hideTip);
 
+applyTheme();
 init();
 </script>
 <div id="tip" style="position:fixed;pointer-events:none;display:none;z-index:999;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:10px 14px;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:#1f2328;min-width:210px;box-shadow:0 4px 16px rgba(140,149,159,.35)"></div>
